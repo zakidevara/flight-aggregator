@@ -10,6 +10,12 @@ import (
 )
 
 func main() {
+	printAirline("AirAsia", provider.AirAsia{})
+	printAirline("LionAir", provider.LionAir{})
+}
+
+func printAirline(airline string, p provider.Provider) {
+
 	req := model.SearchRequest{
 		Origin:        "CGK",
 		Destination:   "DPS",
@@ -18,7 +24,7 @@ func main() {
 		CabinClass:    "economy",
 	}
 
-	p := provider.AirAsia{}
+	fmt.Printf("--- %q ---\n", airline)
 
 	flights, err := p.Search(context.Background(), req)
 	if err != nil {

@@ -49,7 +49,7 @@ func (p AirAsia) Name() string { return "AirAsia" }
 func (p AirAsia) Search(ctx context.Context, req model.SearchRequest) ([]model.Flight, error) {
 
 	// --- Mock Latency (50-150ms) ---
-	time.Sleep(time.Duration(50 + rand.Intn(101)*int(time.Millisecond)))
+	time.Sleep(time.Duration((50 + rand.Intn(101)) * int(time.Millisecond)))
 
 	// --- Mock 10% Error Rate ---
 	if rand.Float64() < 0.10 {

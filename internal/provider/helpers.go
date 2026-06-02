@@ -27,3 +27,11 @@ func formatDuration(totalMinutes int) string {
 	m := totalMinutes % 60
 	return fmt.Sprintf("%dh %dm", h, m)
 }
+
+func parseInZone(naive, zone string) (time.Time, error) {
+	loc, err := time.LoadLocation(zone) // "Asia/Jakarta" -> a *time.Location
+	if err != nil {
+		return time.Time{}, fmt.Errorf("unknown timezone %q: %w", zone, err)
+	}
+	return time.ParseInLocation("2006-01-02T15:04:05", naive, loc)
+}
