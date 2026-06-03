@@ -158,10 +158,6 @@ knows which airline a flight came from. The dependency arrows point inward:
 
 ### Package dependencies
 
-The actual import graph, indicating the dependency of each package by arrow. Dependencies point
-inward: outer transport/orchestration layers depend on inner domain layers,
-never the reverse. `model` is the leaf that everything maps into and that imports
-nothing internal.
 
 ```mermaid
 graph TD
@@ -187,17 +183,6 @@ graph TD
     filter --> model
     provider --> model
 ```
-
-| Package | Key types / entry points | Responsibility |
-|---|---|---|
-| `cmd/server` | `main`, `runDemo` | Composition root — constructs the providers + service, serves HTTP (or runs `-demo`). |
-| `api` | `Server`, `Routes`, `handleSearch` | HTTP adapter: validate/parse the query into a `service.Query`, encode the `SearchResponse`. |
-| `service` | `Service`, `Query`, `Search` | Orchestrates aggregate → filter → rank → metadata; transport-agnostic. |
-| `aggregator` | `FetchAll`, `Result` | Concurrent provider fan-out with retry/backoff and a global timeout; tallies success/failure. |
-| `filter` | `Options`, `Apply`, `Sort`, `RankByValue` | Filter and sort/rank `[]model.Flight` after normalization. |
-| `provider` | `Provider`, `Garuda`/`LionAir`/`BatikAir`/`AirAsia` | Decode each airline's embedded JSON and normalize it to `model.Flight`. |
-| `model` | `Flight`, `SearchRequest`, `SearchResponse` | The shared schema everything maps into; imports nothing internal. |
-| `money` | `FormatIDR` | IDR currency formatting. |
 
 ### Request flow
 
@@ -250,98 +235,29 @@ sequenceDiagram
     end
 ```
 
-A provider failing (or timing out) is non-fatal: the `par` branch returns an
-error, the aggregator counts it in `providers_failed`, and the search proceeds
-with the rest. If the 2s deadline fires, the collection loop stops waiting and
-returns whatever arrived.
 
 ---
 
 ## Key Design Decisions
 
-### `model` — one normalized schema
+### Flight Data Model Normalization
+In order to make it easier for the aggregator to do processing (filtering, sorting, caching), the various data model from different providers is normalized into a standardized set of structs
 
-Every provider maps into a single set of structs (`Flight`, `Endpoint`,
-`Baggage`…). Optional values are pointers (serialize to `null` when absent);
-slices stay non-nil (`[]`, never `null`). A new field touches `model` and every
-provider — the cost of one compiler-enforced definition of a flight. *(Alternative:
-`map[string]any` end-to-end — less code, but no type safety and every JSON number
-becomes a `float64`.)*
+- Every provider normalizes its flight data model into a single standardized set of structs (`Flight`, `Endpoint`,
+`Baggage`…).
+- Each provider implement an interface `Provider` to implement the `Name()` and `Search(ctx, req) ([]Flight, error)` function.
 
-### `provider` — interface + per-airline normalization
+### Parallel Processing per Provider
 
-`Name()` + `Search(ctx, req) ([]Flight, error)`, one stateless struct per airline,
-each embedding its mock JSON (`//go:embed`) and decoding into a private typed
-struct before normalizing to `model.Flight`. Key rules:
+- Implemented parallel processing using goroutine to run `Search` for each provider at the same time, minimizing latency on each search request.
+- Enforced a global timeout and maximum 3 retries each provider with 100/200/400ms backoff.
+- Partial failure handling: failure in one `Provider` doesn't affect the others.
 
-- **Recompute duration/timestamps** from the parsed datetimes — the sample data
-  is deliberately inconsistent, so provider-stated values aren't trusted.
-- **Three time-parsing strategies** (`+07:00`, colon-less `+0700`, naive + IANA
-  zone); `_ "time/tzdata"` is embedded so IANA lookups work on any OS.
-- **Segments win** over top-level fields — GA315 is really CGK→SUB→DPS (1 stop).
-- **Structured baggage** (`weight_kg`/`pieces`/`note`) keeps each provider's
-  original unit instead of flattening to a lossy string.
-- Airport→city via a small map; amenities lowercased for uniform filtering.
+### Best-Value Ranking
 
-Latency and AirAsia's ~10% failure are simulated inside `Search`; a `flaky`/`slow`
-decorator over the interface would be the cleaner separation.
+Best-value ranking uses 3 parameter with different weight: price (50%), flight duration (30%), and number of stops (20%). Each parameter is normalized per result set, so the score of each flight is relevant to other flight in the same result.
 
-### `aggregator` — concurrent fan-out, resilience
-
-One goroutine per provider, results over a **buffered channel**, with `select`
-against `ctx.Done()` enforcing a global timeout; each call gets up to 3 retries
-with 100/200/400ms backoff. Channels (not `WaitGroup`+mutex) so the timeout
-composes via `select`; not `errgroup`, which cancels all on the first error —
-one provider failing must not sink the rest. The buffer (`len(providers)`)
-prevents leaking a goroutine that finishes after a timeout. Next step: a circuit
-breaker for sustained outages.
-
-### `filter` — filter, sort, rank
-
-`Options` uses pointer fields so `nil` means "no constraint" (vs a real `0`).
-`Apply` returns a filtered copy; `Sort` is stable (deterministic order for equal
-keys), chosen from a comparator map by key. Best-value rank blends min-max-
-normalized price (50%), duration (30%), and stops (20%, capped) — normalized per
-result set, so a flight's score is relative to its peers.
-
-### `service` — orchestration
-
-The only layer that knows all the others: aggregate → filter → rank → build
-metadata. Transport-agnostic (`Query` in, `SearchResponse` out), so the HTTP
-handler and `-demo` mode share one code path instead of duplicating logic.
-
-### `api` — stdlib `net/http`
-
-A `ServeMux` with a `/search` handler that parses query params into a `Query` and
-encodes the `SearchResponse`, plus explicit read/write timeouts and graceful
-shutdown via `signal.NotifyContext` + `srv.Shutdown`. GET + query params keeps it
-browser/curl-friendly. No web framework: two routes and Go 1.22's method routing
-don't justify a dependency — chi would be the first step up (handlers stay
-`http.Handler`) if auth, rate limiting, or many endpoints arrived.
-
-### `money` — currency formatting
-
-Hand-rolled IDR thousands grouping (`595000` → `Rp595.000`). Reach for
-`golang.org/x/text` the moment a second currency or locale appears.
-
----
-
-## Cross-cutting concerns
-
-**Error handling.** Errors are values, wrapped with `%w` to preserve cause. Two
-deliberate granularities: a single malformed *flight* is skipped so the rest of
-that provider's results survive; a failed *provider* is non-fatal so the search
-returns the others (and is reflected in `providers_failed`).
-
-**Concurrency safety.** Providers are stateless empty structs, safe to call from
-many goroutines. The aggregator avoids shared mutable state by communicating over
-a channel. The cache is the only shared mutable state and is mutex-guarded.
-
-**Context.** One `context.Context` threads request → service (which adds the
-timeout) → aggregator → each provider's interruptible `sleep`, so both client
-disconnects and the deadline propagate all the way down and actually stop work.
-
-## Handling the data inconsistencies
+### Data Inconsistency Handling
 
 | Inconsistency | Handling |
 |---|---|
