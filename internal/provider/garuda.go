@@ -118,6 +118,6 @@ func (p Garuda) normalize(raw garudaFlight) (model.Flight, error) {
 		CabinClass:     raw.FareClass,
 		Aircraft:       strPtr(raw.Aircraft),
 		Amenities:      lowerAll(raw.Amenities),
-		Baggage:        model.Baggage{CarryOn: pieceStr(raw.Baggage.CarryOn), Checked: pieceStr(raw.Baggage.Checked)},
+		Baggage:        model.Baggage{CarryOn: pieceBaggage(raw.Baggage.CarryOn), Checked: pieceBaggage(raw.Baggage.Checked)},
 	}, nil
 }

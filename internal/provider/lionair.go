@@ -148,8 +148,8 @@ func (p LionAir) normalize(raw lionairFlight) (model.Flight, error) {
 		Aircraft:       &raw.PlaneType,
 		Amenities:      amenities,
 		Baggage: model.Baggage{
-			CarryOn: raw.Services.BaggageAllowance.Cabin,
-			Checked: raw.Services.BaggageAllowance.Hold,
+			CarryOn: model.BaggageAllowance{WeightKg: parseWeightKg(raw.Services.BaggageAllowance.Cabin)},
+			Checked: model.BaggageAllowance{WeightKg: parseWeightKg(raw.Services.BaggageAllowance.Hold)},
 		},
 	}, nil
 }

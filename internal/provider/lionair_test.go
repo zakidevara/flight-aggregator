@@ -95,13 +95,13 @@ func TestLionAir_Normalize_DirectFlight(t *testing.T) {
 		Departure: model.Endpoint{
 			Airport:   "CGK",
 			City:      "Jakarta",
-			Datetime:  "2025-12-15T05:30:00",
+			Datetime:  "2025-12-15T05:30:00+07:00",
 			Timestamp: mustInZone(t, "2025-12-15T05:30:00", "Asia/Jakarta"),
 		},
 		Arrival: model.Endpoint{
 			Airport:   "DPS",
 			City:      "Denpasar",
-			Datetime:  "2025-12-15T08:15:00",
+			Datetime:  "2025-12-15T08:15:00+08:00",
 			Timestamp: mustInZone(t, "2025-12-15T08:15:00", "Asia/Makassar"),
 		},
 		Duration: model.Duration{
@@ -111,12 +111,12 @@ func TestLionAir_Normalize_DirectFlight(t *testing.T) {
 		Stops:          0,
 		Price:          model.Price{Amount: 950000, Currency: "IDR"},
 		AvailableSeats: 45,
-		CabinClass:     "ECONOMY",
+		CabinClass:     "economy",
 		Aircraft:       &plane,
 		Amenities:      []string{},
 		Baggage: model.Baggage{
-			CarryOn: "7 kg",
-			Checked: "20 kg",
+			CarryOn: model.BaggageAllowance{WeightKg: intPtr(7)},
+			Checked: model.BaggageAllowance{WeightKg: intPtr(20)},
 		},
 	}
 
@@ -424,7 +424,7 @@ func assertLionFlightEqual(t *testing.T, got, want model.Flight) {
 	if !reflect.DeepEqual(got.Amenities, want.Amenities) {
 		t.Errorf("Amenities = %v, want %v", got.Amenities, want.Amenities)
 	}
-	if got.Baggage != want.Baggage {
+	if !reflect.DeepEqual(got.Baggage, want.Baggage) {
 		t.Errorf("Baggage = %+v, want %+v", got.Baggage, want.Baggage)
 	}
 	switch {

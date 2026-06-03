@@ -75,8 +75,8 @@ func TestAirAsia_Normalize_DirectFlight(t *testing.T) {
 		Aircraft:       nil,
 		Amenities:      []string{},
 		Baggage: model.Baggage{
-			CarryOn: "Cabin baggage only",
-			Checked: "Additional fee",
+			CarryOn: model.BaggageAllowance{Note: "Cabin baggage only"},
+			Checked: model.BaggageAllowance{Note: "Additional fee"},
 		},
 	}
 

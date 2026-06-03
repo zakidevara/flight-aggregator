@@ -15,7 +15,7 @@ type Flight struct {
 	AvailableSeats int      `json:"available_seats"`
 	CabinClass     string   `json:"cabin_class"`
 	Aircraft       *string  `json:"aircraft"`  // nullable -> AirAsia has none
-	Amenities      []string `json:"amenities"` // must be non-nil (see note)
+	Amenities      []string `json:"amenities"` // must be non-nil
 	Baggage        Baggage  `json:"baggage"`
 }
 
@@ -42,6 +42,13 @@ type Price struct {
 }
 
 type Baggage struct {
-	CarryOn string `json:"carry_on"`
-	Checked string `json:"checked"`
+	CarryOn BaggageAllowance `json:"carry_on"`
+	Checked BaggageAllowance `json:"checked"`
+}
+
+type BaggageAllowance struct {
+	Included bool   `json:"included"`
+	WeightKg *int   `json:"weight_kg"` // null unless weight-based
+	Pieces   *int   `json:"pieces"`    // null unless piece-based
+	Note     string `json:"note"`      // free-text fallback
 }

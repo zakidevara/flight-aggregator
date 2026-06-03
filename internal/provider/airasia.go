@@ -126,8 +126,8 @@ func (p AirAsia) normalize(raw airasiaFlight) (model.Flight, error) {
 		Amenities:      []string{},
 		// TODO: check this mapping
 		Baggage: model.Baggage{
-			CarryOn: "Cabin baggage only",
-			Checked: "Additional fee",
+			CarryOn: model.BaggageAllowance{Note: "Cabin baggage only"},
+			Checked: model.BaggageAllowance{Note: "Additional fee"},
 		},
 	}, nil
 }

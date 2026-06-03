@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -73,16 +74,16 @@ func lowerAll(in []string) []string {
 	return out
 }
 
-func parseBatikBaggage(s string) (carryOn, checked string) {
+func parseBatikBaggage(s string) (carryOn, checked model.BaggageAllowance) {
 	parts := strings.Split(s, ",")
 	if len(parts) > 0 {
 		if f := strings.Fields(strings.TrimSpace(parts[0])); len(f) > 0 {
-			carryOn = f[0]
+			carryOn = model.BaggageAllowance{WeightKg: parseWeightKg(f[0])}
 		}
 	}
 	if len(parts) > 1 {
 		if f := strings.Fields(strings.TrimSpace(parts[1])); len(f) > 0 {
-			checked = f[0]
+			checked = model.BaggageAllowance{WeightKg: parseWeightKg(f[0])}
 		}
 	}
 	return carryOn, checked
@@ -94,13 +95,28 @@ func parseOffsetNoColon(s string) (time.Time, error) {
 
 func strPtr(s string) *string { return &s }
 
-func pieceStr(n int) string {
-	switch {
-	case n <= 0:
-		return ""
-	case n == 1:
-		return "1 piece"
-	default:
-		return fmt.Sprintf("%d pieces", n)
+// pieceBaggage builds a piece-based allowance; a non-positive count yields the
+// zero allowance (no baggage information).
+func pieceBaggage(n int) model.BaggageAllowance {
+	if n <= 0 {
+		return model.BaggageAllowance{}
 	}
+	return model.BaggageAllowance{Pieces: intPtr(n)}
+}
+
+func parseWeightKg(s string) *int {
+	s = strings.TrimSpace(s)
+	i := 0
+	for i < len(s) && s[i] >= '0' && s[i] <= '9' { // walk the leading digits
+		i++
+	}
+	if i == 0 {
+		return nil // no number -> nil
+	}
+	n, _ := strconv.Atoi(s[:i]) // "7" -> 7
+	return &n
+}
+
+func intPtr(v int) *int {
+	return &v
 }

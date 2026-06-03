@@ -58,8 +58,8 @@ func baseBatikFlight(t *testing.T) batikFlight {
 }
 
 func TestBatikAir_Name(t *testing.T) {
-	if got := (BatikAir{}).Name(); got != "Batik Air" {
-		t.Fatalf("Name() = %q, want %q", got, "Batik Air")
+	if got := (BatikAir{}).Name(); got != "BatikAir" {
+		t.Fatalf("Name() = %q, want %q", got, "BatikAir")
 	}
 }
 
@@ -74,7 +74,7 @@ func TestBatikAir_Normalize_DirectFlight(t *testing.T) {
 	plane := "Airbus A320"
 	// 07:15+07:00 = 00:15Z, 10:00+08:00 = 02:00Z -> 1h45m = 105 min.
 	want := model.Flight{
-		ID:           "ID6514_Batik Air",
+		ID:           "ID6514_BatikAir",
 		Provider:     "Batik Air",
 		Airline:      model.Airline{Name: "Batik Air", Code: "ID"},
 		FlightNumber: "ID6514",
@@ -101,8 +101,8 @@ func TestBatikAir_Normalize_DirectFlight(t *testing.T) {
 		Aircraft:       &plane,
 		Amenities:      []string{"snack", "beverage"},
 		Baggage: model.Baggage{
-			CarryOn: "7kg",
-			Checked: "20kg",
+			CarryOn: model.BaggageAllowance{WeightKg: intPtr(7)},
+			Checked: model.BaggageAllowance{WeightKg: intPtr(20)},
 		},
 	}
 
@@ -233,26 +233,26 @@ func TestBatikAir_Normalize_Baggage(t *testing.T) {
 	tests := []struct {
 		name        string
 		baggageInfo string
-		wantCarryOn string
-		wantChecked string
+		wantCarryOn model.BaggageAllowance
+		wantChecked model.BaggageAllowance
 	}{
 		{
 			name:        "standard format",
 			baggageInfo: "7kg cabin, 20kg checked",
-			wantCarryOn: "7kg",
-			wantChecked: "20kg",
+			wantCarryOn: model.BaggageAllowance{WeightKg: intPtr(7)},
+			wantChecked: model.BaggageAllowance{WeightKg: intPtr(20)},
 		},
 		{
 			name:        "no checked allowance",
 			baggageInfo: "7kg cabin",
-			wantCarryOn: "7kg",
-			wantChecked: "",
+			wantCarryOn: model.BaggageAllowance{WeightKg: intPtr(7)},
+			wantChecked: model.BaggageAllowance{},
 		},
 		{
 			name:        "empty string",
 			baggageInfo: "",
-			wantCarryOn: "",
-			wantChecked: "",
+			wantCarryOn: model.BaggageAllowance{},
+			wantChecked: model.BaggageAllowance{},
 		},
 	}
 
@@ -265,11 +265,11 @@ func TestBatikAir_Normalize_Baggage(t *testing.T) {
 			if err != nil {
 				t.Fatalf("normalize() unexpected error: %v", err)
 			}
-			if got.Baggage.CarryOn != tt.wantCarryOn {
-				t.Errorf("Baggage.CarryOn = %q, want %q", got.Baggage.CarryOn, tt.wantCarryOn)
+			if !reflect.DeepEqual(got.Baggage.CarryOn, tt.wantCarryOn) {
+				t.Errorf("Baggage.CarryOn = %+v, want %+v", got.Baggage.CarryOn, tt.wantCarryOn)
 			}
-			if got.Baggage.Checked != tt.wantChecked {
-				t.Errorf("Baggage.Checked = %q, want %q", got.Baggage.Checked, tt.wantChecked)
+			if !reflect.DeepEqual(got.Baggage.Checked, tt.wantChecked) {
+				t.Errorf("Baggage.Checked = %+v, want %+v", got.Baggage.Checked, tt.wantChecked)
 			}
 		})
 	}
@@ -397,8 +397,8 @@ func TestBatikAir_Search_ReturnsNormalizedFlights(t *testing.T) {
 		if f.Provider != "Batik Air" {
 			t.Errorf("flight %s: Provider = %q, want Batik Air", f.ID, f.Provider)
 		}
-		if !strings.HasSuffix(f.ID, "_Batik Air") {
-			t.Errorf("flight ID = %q, want suffix _Batik Air", f.ID)
+		if !strings.HasSuffix(f.ID, "_BatikAir") {
+			t.Errorf("flight ID = %q, want suffix _BatikAir", f.ID)
 		}
 		if f.Airline.Code != "ID" {
 			t.Errorf("flight %s: Airline.Code = %q, want ID", f.ID, f.Airline.Code)
@@ -420,7 +420,7 @@ func TestBatikAir_Search_ReturnsNormalizedFlights(t *testing.T) {
 	// Spot-check the connecting flight in the fixture (ID7042 has one stop).
 	var found bool
 	for _, f := range flights {
-		if f.ID == "ID7042_Batik Air" {
+		if f.ID == "ID7042_BatikAir" {
 			found = true
 			if f.Stops != 1 {
 				t.Errorf("ID7042: Stops = %d, want 1", f.Stops)
@@ -428,7 +428,7 @@ func TestBatikAir_Search_ReturnsNormalizedFlights(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Error("expected ID7042_Batik Air in results")
+		t.Error("expected ID7042_BatikAir in results")
 	}
 }
 
@@ -504,7 +504,7 @@ func assertBatikFlightEqual(t *testing.T, got, want model.Flight) {
 	if !reflect.DeepEqual(got.Amenities, want.Amenities) {
 		t.Errorf("Amenities = %v, want %v", got.Amenities, want.Amenities)
 	}
-	if got.Baggage != want.Baggage {
+	if !reflect.DeepEqual(got.Baggage, want.Baggage) {
 		t.Errorf("Baggage = %+v, want %+v", got.Baggage, want.Baggage)
 	}
 	switch {

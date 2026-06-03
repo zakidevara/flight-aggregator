@@ -42,8 +42,8 @@ func baseGarudaFlight(t *testing.T) garudaFlight {
 }
 
 func TestGaruda_Name(t *testing.T) {
-	if got := (Garuda{}).Name(); got != "Garuda Indonesia" {
-		t.Fatalf("Name() = %q, want %q", got, "Garuda Indonesia")
+	if got := (Garuda{}).Name(); got != "GarudaIndonesia" {
+		t.Fatalf("Name() = %q, want %q", got, "GarudaIndonesia")
 	}
 }
 
@@ -58,7 +58,7 @@ func TestGaruda_Normalize_DirectFlight(t *testing.T) {
 	plane := "Boeing 737-800"
 	// 06:00+07:00 = 23:00Z (prev day), 08:50+08:00 = 00:50Z -> 1h50m = 110 min.
 	want := model.Flight{
-		ID:           "GA400_Garuda Indonesia",
+		ID:           "GA400_GarudaIndonesia",
 		Provider:     "Garuda Indonesia",
 		Airline:      model.Airline{Name: "Garuda Indonesia", Code: "GA"},
 		FlightNumber: "GA400",
@@ -85,8 +85,8 @@ func TestGaruda_Normalize_DirectFlight(t *testing.T) {
 		Aircraft:       &plane,
 		Amenities:      []string{"wifi", "meal", "entertainment"},
 		Baggage: model.Baggage{
-			CarryOn: "1 piece",
-			Checked: "2 pieces",
+			CarryOn: model.BaggageAllowance{Pieces: intPtr(1)},
+			Checked: model.BaggageAllowance{Pieces: intPtr(2)},
 		},
 	}
 
@@ -188,13 +188,13 @@ func TestGaruda_Normalize_BaggagePieceFormatting(t *testing.T) {
 		name        string
 		carryOn     int
 		checked     int
-		wantCarryOn string
-		wantChecked string
+		wantCarryOn model.BaggageAllowance
+		wantChecked model.BaggageAllowance
 	}{
-		{name: "zero is empty", carryOn: 0, checked: 0, wantCarryOn: "", wantChecked: ""},
-		{name: "single piece", carryOn: 1, checked: 1, wantCarryOn: "1 piece", wantChecked: "1 piece"},
-		{name: "multiple pieces", carryOn: 2, checked: 3, wantCarryOn: "2 pieces", wantChecked: "3 pieces"},
-		{name: "negative treated as empty", carryOn: -1, checked: -5, wantCarryOn: "", wantChecked: ""},
+		{name: "zero is empty", carryOn: 0, checked: 0, wantCarryOn: model.BaggageAllowance{}, wantChecked: model.BaggageAllowance{}},
+		{name: "single piece", carryOn: 1, checked: 1, wantCarryOn: model.BaggageAllowance{Pieces: intPtr(1)}, wantChecked: model.BaggageAllowance{Pieces: intPtr(1)}},
+		{name: "multiple pieces", carryOn: 2, checked: 3, wantCarryOn: model.BaggageAllowance{Pieces: intPtr(2)}, wantChecked: model.BaggageAllowance{Pieces: intPtr(3)}},
+		{name: "negative treated as empty", carryOn: -1, checked: -5, wantCarryOn: model.BaggageAllowance{}, wantChecked: model.BaggageAllowance{}},
 	}
 
 	for _, tt := range tests {
@@ -207,11 +207,11 @@ func TestGaruda_Normalize_BaggagePieceFormatting(t *testing.T) {
 			if err != nil {
 				t.Fatalf("normalize() unexpected error: %v", err)
 			}
-			if got.Baggage.CarryOn != tt.wantCarryOn {
-				t.Errorf("Baggage.CarryOn = %q, want %q", got.Baggage.CarryOn, tt.wantCarryOn)
+			if !reflect.DeepEqual(got.Baggage.CarryOn, tt.wantCarryOn) {
+				t.Errorf("Baggage.CarryOn = %+v, want %+v", got.Baggage.CarryOn, tt.wantCarryOn)
 			}
-			if got.Baggage.Checked != tt.wantChecked {
-				t.Errorf("Baggage.Checked = %q, want %q", got.Baggage.Checked, tt.wantChecked)
+			if !reflect.DeepEqual(got.Baggage.Checked, tt.wantChecked) {
+				t.Errorf("Baggage.Checked = %+v, want %+v", got.Baggage.Checked, tt.wantChecked)
 			}
 		})
 	}
@@ -405,8 +405,8 @@ func TestGaruda_Search_ReturnsNormalizedFlights(t *testing.T) {
 		if f.Provider != "Garuda Indonesia" {
 			t.Errorf("flight %s: Provider = %q, want Garuda Indonesia", f.ID, f.Provider)
 		}
-		if !strings.HasSuffix(f.ID, "_Garuda Indonesia") {
-			t.Errorf("flight ID = %q, want suffix _Garuda Indonesia", f.ID)
+		if !strings.HasSuffix(f.ID, "_GarudaIndonesia") {
+			t.Errorf("flight ID = %q, want suffix _GarudaIndonesia", f.ID)
 		}
 		if f.Airline.Code != "GA" {
 			t.Errorf("flight %s: Airline.Code = %q, want GA", f.ID, f.Airline.Code)
@@ -423,7 +423,7 @@ func TestGaruda_Search_ReturnsNormalizedFlights(t *testing.T) {
 	// report it as a 1-stop flight arriving in Denpasar, not the top-level SUB.
 	var found bool
 	for _, f := range flights {
-		if f.ID == "GA315_Garuda Indonesia" {
+		if f.ID == "GA315_GarudaIndonesia" {
 			found = true
 			if f.Stops != 1 {
 				t.Errorf("GA315: Stops = %d, want 1", f.Stops)
@@ -437,7 +437,7 @@ func TestGaruda_Search_ReturnsNormalizedFlights(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Error("expected GA315_Garuda Indonesia in results")
+		t.Error("expected GA315_GarudaIndonesia in results")
 	}
 }
 
@@ -509,7 +509,7 @@ func assertGarudaFlightEqual(t *testing.T, got, want model.Flight) {
 	if !reflect.DeepEqual(got.Amenities, want.Amenities) {
 		t.Errorf("Amenities = %v, want %v", got.Amenities, want.Amenities)
 	}
-	if got.Baggage != want.Baggage {
+	if !reflect.DeepEqual(got.Baggage, want.Baggage) {
 		t.Errorf("Baggage = %+v, want %+v", got.Baggage, want.Baggage)
 	}
 	switch {
