@@ -54,7 +54,7 @@ type garudaFlight struct {
 
 type Garuda struct{}
 
-func (p Garuda) Name() string { return "Garuda Indonesia" }
+func (p Garuda) Name() string { return "GarudaIndonesia" }
 
 func (p Garuda) Search(ctx context.Context, req model.SearchRequest) ([]model.Flight, error) {
 	if err := sleep(ctx, time.Duration(50+rand.Intn(51))*time.Millisecond); err != nil {
@@ -105,7 +105,7 @@ func (p Garuda) normalize(raw garudaFlight) (model.Flight, error) {
 	mins := minutesBetween(dep, arr)
 
 	return model.Flight{
-		ID:             raw.FlightID + "_Garuda Indonesia",
+		ID:             raw.FlightID + "_GarudaIndonesia",
 		Provider:       "Garuda Indonesia",
 		Airline:        model.Airline{Name: raw.Airline, Code: raw.AirlineCode},
 		FlightNumber:   raw.FlightID,

@@ -49,7 +49,7 @@ type batikFlight struct {
 
 type BatikAir struct{}
 
-func (p BatikAir) Name() string { return "Batik Air" }
+func (p BatikAir) Name() string { return "BatikAir" }
 
 func (p BatikAir) Search(ctx context.Context, req model.SearchRequest) ([]model.Flight, error) {
 	if err := sleep(ctx, time.Duration(200+rand.Intn(201))*time.Millisecond); err != nil {
@@ -86,7 +86,7 @@ func (p BatikAir) normalize(raw batikFlight) (model.Flight, error) {
 	carryOn, checked := parseBatikBaggage(raw.BaggageInfo)
 
 	return model.Flight{
-		ID:             raw.FlightNumber + "_Batik Air",
+		ID:             raw.FlightNumber + "_BatikAir",
 		Provider:       "Batik Air",
 		Airline:        model.Airline{Name: raw.AirlineName, Code: raw.AirlineIATA},
 		FlightNumber:   raw.FlightNumber,

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/zakidevara/bookcabin-assessment/internal/model"
@@ -131,20 +132,10 @@ func (p LionAir) normalize(raw lionairFlight) (model.Flight, error) {
 	return model.Flight{
 		ID:           raw.ID + "_LionAir",
 		Provider:     "LionAir",
-		Airline:      model.Airline{Name: raw.Airline, Code: raw.Carrier.IATA},
+		Airline:      model.Airline{Name: raw.Carrier.Name, Code: raw.Carrier.IATA},
 		FlightNumber: raw.ID,
-		Departure: model.Endpoint{
-			Airport:   raw.Route.From.Code,
-			City:      raw.Route.From.City,
-			Datetime:  raw.Schedule.Departure,
-			Timestamp: dep.Unix(),
-		},
-		Arrival: model.Endpoint{
-			Airport:   raw.Route.To.Code,
-			City:      raw.Route.To.City,
-			Datetime:  raw.Schedule.Arrival,
-			Timestamp: arr.Unix(),
-		},
+		Departure:    endpoint(raw.Route.From.Code, raw.Route.From.City, dep),
+		Arrival:      endpoint(raw.Route.To.Code, raw.Route.To.City, arr),
 		Duration: model.Duration{
 			TotalMinutes: raw.FlightTime,
 			Formatted:    formatDuration(raw.FlightTime),
@@ -153,7 +144,7 @@ func (p LionAir) normalize(raw lionairFlight) (model.Flight, error) {
 		// TODO: for now assume always return IDR currency, if not need to add currency conversion logic
 		Price:          model.Price{Amount: raw.Pricing.Total, Currency: raw.Pricing.Currency},
 		AvailableSeats: raw.SeatsLeft,
-		CabinClass:     raw.Pricing.FareType,
+		CabinClass:     strings.ToLower(raw.Pricing.FareType),
 		Aircraft:       &raw.PlaneType,
 		Amenities:      amenities,
 		Baggage: model.Baggage{
