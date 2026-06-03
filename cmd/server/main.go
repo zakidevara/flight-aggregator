@@ -78,9 +78,9 @@ func runDemo(svc *service.Service) {
 	fmt.Println(string(out))
 	if len(resp.Flights) > 0 {
 		b := resp.Flights[0]
-		fmt.Printf("\nTop pick: %s %s -> %s, %s, %s, %d stop(s)\n",
+		fmt.Printf("\nTop pick: %s %s -> %s, %s, %d %s, %d stop(s)\n",
 			b.FlightNumber, b.Departure.Airport, b.Arrival.Airport,
-			b.Duration.Formatted, b.Price.Amount, b.Stops)
+			b.Duration.Formatted, b.Price.Amount, b.Price.Currency, b.Stops)
 	}
 }
 

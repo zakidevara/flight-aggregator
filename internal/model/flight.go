@@ -1,5 +1,10 @@
 package model
 
+import (
+	"encoding/json"
+	"fmt"
+)
+
 // ---- Normalized Flight Model ----
 
 type Flight struct {
@@ -47,8 +52,27 @@ type Baggage struct {
 }
 
 type BaggageAllowance struct {
-	Included bool   `json:"included"`
 	WeightKg *int   `json:"weight_kg"` // null unless weight-based
 	Pieces   *int   `json:"pieces"`    // null unless piece-based
 	Note     string `json:"note"`      // free-text fallback
+}
+
+func (b BaggageAllowance) String() string {
+	switch {
+	case b.WeightKg != nil:
+		return fmt.Sprintf("%d kg", *b.WeightKg)
+	case b.Pieces != nil:
+		if *b.Pieces == 1 {
+			return "1 piece"
+		}
+		return fmt.Sprintf("%d pieces", *b.Pieces)
+	case b.Note != "":
+		return b.Note
+	default:
+		return ""
+	}
+}
+
+func (b BaggageAllowance) MarshalJSON() ([]byte, error) {
+	return json.Marshal(b.String())
 }
