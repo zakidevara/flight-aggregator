@@ -2,6 +2,8 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -20,37 +22,54 @@ func mustInZone(t *testing.T, naive, zone string) int64 {
 	return tm.Unix()
 }
 
-// baseLionairFlight returns a fully-populated, valid raw flight that individual
-// tests can mutate for the specific behavior under test.
-func baseLionairFlight() lionairFlight {
-	return lionairFlight{
-		ID:      "JT740",
-		Carrier: lionairCarrier{Name: "Lion Air", IATA: "JT"},
-		Airline: "Lion Air",
-		Route: lionairRoute{
-			From: lionairAirport{Code: "CGK", Name: "Soekarno-Hatta International", City: "Jakarta"},
-			To:   lionairAirport{Code: "DPS", Name: "Ngurah Rai International", City: "Denpasar"},
-		},
-		Schedule: lionairSchedule{
-			Departure:         "2025-12-15T05:30:00",
-			DepartureTimezone: "Asia/Jakarta",
-			Arrival:           "2025-12-15T08:15:00",
-			ArrivalTimezone:   "Asia/Makassar",
-		},
-		FlightTime: 105,
-		IsDirect:   true,
-		Pricing:    lionairPricing{Total: 950000, Currency: "IDR", FareType: "ECONOMY"},
-		SeatsLeft:  45,
-		PlaneType:  "Boeing 737-900ER",
-		Services: lionairServices{
-			WifiAvailable: false,
-			MealsIncluded: false,
-			BaggageAllowance: lionairBaggage{
-				Cabin: "7 kg",
-				Hold:  "20 kg",
-			},
-		},
+const lionairFlightTemplate = `{
+	"id": "JT740",
+	"carrier": {"name": "Lion Air", "iata": "JT"},
+	"airline": "Lion Air",
+	"route": {
+		"from": {"code": "CGK", "name": "Soekarno-Hatta International", "city": "Jakarta"},
+		"to": {"code": "DPS", "name": "Ngurah Rai International", "city": "Denpasar"}
+	},
+	"schedule": {
+		"departure": "2025-12-15T05:30:00",
+		"departure_timezone": "Asia/Jakarta",
+		"arrival": "2025-12-15T08:15:00",
+		"arrival_timezone": "Asia/Makassar"
+	},
+	"flight_time": 105,
+	"is_direct": %t,
+	"layovers": [%s],
+	"pricing": {"total": 950000, "currency": "IDR", "fare_type": "ECONOMY"},
+	"seats_left": 45,
+	"plane_type": "Boeing 737-900ER",
+	"services": {
+		"wifi_available": false,
+		"meals_included": false,
+		"baggage_allowance": {"cabin": "7 kg", "hold": "20 kg"}
 	}
+}`
+
+func decodeLionairFlight(t *testing.T, js string) lionairFlight {
+	t.Helper()
+	var f lionairFlight
+	if err := json.Unmarshal([]byte(js), &f); err != nil {
+		t.Fatalf("decoding lionair fixture: %v\njson: %s", err, js)
+	}
+	return f
+}
+
+func baseLionairFlight(t *testing.T) lionairFlight {
+	t.Helper()
+	return decodeLionairFlight(t, fmt.Sprintf(lionairFlightTemplate, true, ""))
+}
+
+func lionairFlightWithLayovers(t *testing.T, isDirect bool, n int) lionairFlight {
+	t.Helper()
+	entries := make([]string, 0, n)
+	for range n {
+		entries = append(entries, `{"airport": "SUB", "duration_minutes": 75}`)
+	}
+	return decodeLionairFlight(t, fmt.Sprintf(lionairFlightTemplate, isDirect, strings.Join(entries, ",")))
 }
 
 func TestLionAir_Name(t *testing.T) {
@@ -60,7 +79,7 @@ func TestLionAir_Name(t *testing.T) {
 }
 
 func TestLionAir_Normalize_DirectFlight(t *testing.T) {
-	raw := baseLionairFlight()
+	raw := baseLionairFlight(t)
 
 	got, err := LionAir{}.normalize(raw)
 	if err != nil {
@@ -105,7 +124,7 @@ func TestLionAir_Normalize_DirectFlight(t *testing.T) {
 }
 
 func TestLionAir_Normalize_AircraftIsPointerToPlaneType(t *testing.T) {
-	raw := baseLionairFlight()
+	raw := baseLionairFlight(t)
 	raw.PlaneType = "Airbus A320"
 
 	got, err := LionAir{}.normalize(raw)
@@ -121,7 +140,7 @@ func TestLionAir_Normalize_AircraftIsPointerToPlaneType(t *testing.T) {
 }
 
 func TestLionAir_Normalize_CurrencyPassthrough(t *testing.T) {
-	raw := baseLionairFlight()
+	raw := baseLionairFlight(t)
 	raw.Pricing.Currency = "USD"
 	raw.Pricing.Total = 65
 
@@ -139,42 +158,20 @@ func TestLionAir_Normalize_CurrencyPassthrough(t *testing.T) {
 
 func TestLionAir_Normalize_Stops(t *testing.T) {
 	tests := []struct {
-		name     string
-		isDirect bool
-		layovers []lionairLayover
-		want     int
+		name         string
+		isDirect     bool
+		layoverCount int
+		want         int
 	}{
-		{
-			name:     "direct flight",
-			isDirect: true,
-			layovers: nil,
-			want:     0,
-		},
-		{
-			name:     "direct flight ignores layovers",
-			isDirect: true,
-			layovers: []lionairLayover{{Airport: "SUB", DurationMinutes: 75}},
-			want:     0,
-		},
-		{
-			name:     "single layover",
-			isDirect: false,
-			layovers: []lionairLayover{{Airport: "SUB", DurationMinutes: 75}},
-			want:     1,
-		},
-		{
-			name:     "multiple layovers",
-			isDirect: false,
-			layovers: []lionairLayover{{Airport: "SUB", DurationMinutes: 75}, {Airport: "SOC", DurationMinutes: 40}},
-			want:     2,
-		},
+		{name: "direct flight", isDirect: true, layoverCount: 0, want: 0},
+		{name: "direct flight ignores layovers", isDirect: true, layoverCount: 1, want: 0},
+		{name: "single layover", isDirect: false, layoverCount: 1, want: 1},
+		{name: "multiple layovers", isDirect: false, layoverCount: 2, want: 2},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			raw := baseLionairFlight()
-			raw.IsDirect = tt.isDirect
-			raw.Layover = tt.layovers
+			raw := lionairFlightWithLayovers(t, tt.isDirect, tt.layoverCount)
 
 			got, err := LionAir{}.normalize(raw)
 			if err != nil {
@@ -202,7 +199,7 @@ func TestLionAir_Normalize_Amenities(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			raw := baseLionairFlight()
+			raw := baseLionairFlight(t)
 			raw.Services.WifiAvailable = tt.wifi
 			raw.Services.MealsIncluded = tt.meals
 
@@ -223,7 +220,7 @@ func TestLionAir_Normalize_Amenities(t *testing.T) {
 func TestLionAir_Normalize_DurationFromFlightTime(t *testing.T) {
 	// Duration comes from the source flight_time field, not computed from the
 	// departure/arrival difference.
-	raw := baseLionairFlight()
+	raw := baseLionairFlight(t)
 	raw.FlightTime = 230
 
 	got, err := LionAir{}.normalize(raw)
@@ -296,7 +293,7 @@ func TestLionAir_Normalize_Errors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			raw := baseLionairFlight()
+			raw := baseLionairFlight(t)
 			tt.mutate(&raw)
 
 			_, err := LionAir{}.normalize(raw)
@@ -313,7 +310,7 @@ func TestLionAir_Normalize_Errors(t *testing.T) {
 // A same-wall-clock-time departure and arrival in different zones still produces
 // a valid flight because the absolute instants differ.
 func TestLionAir_Normalize_CrossZoneSameWallClock(t *testing.T) {
-	raw := baseLionairFlight()
+	raw := baseLionairFlight(t)
 	raw.Schedule.Departure = "2025-12-15T08:00:00"
 	raw.Schedule.DepartureTimezone = "Asia/Jakarta" // +07
 	raw.Schedule.Arrival = "2025-12-15T08:00:00"
@@ -339,7 +336,6 @@ func TestLionAir_Search_ReturnsNormalizedFlights(t *testing.T) {
 		CabinClass:    "economy",
 	}
 
-	// LionAir.Search has no random error path, so a single call is reliable.
 	flights, err := p.Search(context.Background(), req)
 	if err != nil {
 		t.Fatalf("Search() unexpected error: %v", err)
@@ -370,7 +366,6 @@ func TestLionAir_Search_ReturnsNormalizedFlights(t *testing.T) {
 		}
 	}
 
-	// Spot-check the non-direct flight in the fixture (JT650 has one layover).
 	var found bool
 	for _, f := range flights {
 		if f.ID == "JT650_LionAir" {

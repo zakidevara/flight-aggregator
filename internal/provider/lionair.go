@@ -16,72 +16,58 @@ var lionairJSON []byte
 
 // --- Raw JSON Response Model ---
 type lionairResponse struct {
-	Success bool        `json:"success"`
-	Data    lionairData `json:"data"`
-}
-
-type lionairData struct {
-	AvailableFlights []lionairFlight `json:"available_flights"`
+	Success bool `json:"success"`
+	Data    struct {
+		AvailableFlights []lionairFlight `json:"available_flights"`
+	} `json:"data"`
 }
 
 type lionairFlight struct {
-	ID         string           `json:"id"`
-	Carrier    lionairCarrier   `json:"carrier"`
-	Airline    string           `json:"airline"`
-	Route      lionairRoute     `json:"route"`
-	Schedule   lionairSchedule  `json:"schedule"`
-	FlightTime int              `json:"flight_time"`
-	IsDirect   bool             `json:"is_direct"`
-	Layover    []lionairLayover `json:"layovers"`
-	Pricing    lionairPricing   `json:"pricing"`
-	SeatsLeft  int              `json:"seats_left"`
-	PlaneType  string           `json:"plane_type"`
-	Services   lionairServices  `json:"services"`
-}
-
-type lionairLayover struct {
-	Airport         string `json:"airport"`
-	DurationMinutes int    `json:"duration_minutes"`
-}
-
-type lionairCarrier struct {
-	Name string `json:"name"`
-	IATA string `json:"iata"`
-}
-
-type lionairServices struct {
-	WifiAvailable    bool           `json:"wifi_available"`
-	MealsIncluded    bool           `json:"meals_included"`
-	BaggageAllowance lionairBaggage `json:"baggage_allowance"`
-}
-
-type lionairBaggage struct {
-	Cabin string `json:"cabin"`
-	Hold  string `json:"hold"`
-}
-
-type lionairPricing struct {
-	Total    int64  `json:"total"`
-	Currency string `json:"currency"`
-	FareType string `json:"fare_type"`
-}
-
-type lionairRoute struct {
-	From lionairAirport `json:"from"`
-	To   lionairAirport `json:"to"`
-}
-
-type lionairAirport struct {
-	Code string `json:"code"`
-	Name string `json:"name"`
-	City string `json:"city"`
-}
-
-type lionairSchedule struct {
-	Departure         string `json:"departure"`
-	DepartureTimezone string `json:"departure_timezone"`
-	Arrival           string `json:"arrival"`
-	ArrivalTimezone   string `json:"arrival_timezone"`
+	ID      string `json:"id"`
+	Carrier struct {
+		Name string `json:"name"`
+		IATA string `json:"iata"`
+	} `json:"carrier"`
+	Airline string `json:"airline"`
+	Route   struct {
+		From struct {
+			Code string `json:"code"`
+			Name string `json:"name"`
+			City string `json:"city"`
+		} `json:"from"`
+		To struct {
+			Code string `json:"code"`
+			Name string `json:"name"`
+			City string `json:"city"`
+		} `json:"to"`
+	} `json:"route"`
+	Schedule struct {
+		Departure         string `json:"departure"`
+		DepartureTimezone string `json:"departure_timezone"`
+		Arrival           string `json:"arrival"`
+		ArrivalTimezone   string `json:"arrival_timezone"`
+	} `json:"schedule"`
+	FlightTime int  `json:"flight_time"`
+	IsDirect   bool `json:"is_direct"`
+	Layover    []struct {
+		Airport         string `json:"airport"`
+		DurationMinutes int    `json:"duration_minutes"`
+	} `json:"layovers"`
+	Pricing struct {
+		Total    int64  `json:"total"`
+		Currency string `json:"currency"`
+		FareType string `json:"fare_type"`
+	} `json:"pricing"`
+	SeatsLeft int    `json:"seats_left"`
+	PlaneType string `json:"plane_type"`
+	Services  struct {
+		WifiAvailable    bool `json:"wifi_available"`
+		MealsIncluded    bool `json:"meals_included"`
+		BaggageAllowance struct {
+			Cabin string `json:"cabin"`
+			Hold  string `json:"hold"`
+		} `json:"baggage_allowance"`
+	} `json:"services"`
 }
 
 // --- LionAir Mock Fetcher & Normalizer ---
