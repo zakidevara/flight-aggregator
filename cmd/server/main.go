@@ -16,6 +16,7 @@ import (
 	"github.com/zakidevara/bookcabin-assessment/internal/api"
 	"github.com/zakidevara/bookcabin-assessment/internal/filter"
 	"github.com/zakidevara/bookcabin-assessment/internal/model"
+	"github.com/zakidevara/bookcabin-assessment/internal/money"
 	"github.com/zakidevara/bookcabin-assessment/internal/provider"
 	"github.com/zakidevara/bookcabin-assessment/internal/service"
 )
@@ -71,16 +72,16 @@ func runDemo(svc *service.Service) {
 			Origin: "CGK", Destination: "DPS", DepartureDate: "2025-12-15",
 			Passengers: 1, CabinClass: "economy",
 		},
-		Sort: filter.SortDurationAsc,
+		Sort: filter.SortBestValue,
 	}
 	resp := svc.Search(context.Background(), q)
 	out, _ := json.MarshalIndent(resp, "", "  ")
 	fmt.Println(string(out))
 	if len(resp.Flights) > 0 {
 		b := resp.Flights[0]
-		fmt.Printf("\nTop pick: %s %s -> %s, %s, %d %s, %d stop(s)\n",
+		fmt.Printf("\nTop pick: %s %s -> %s, %s, %s %s, %d stop(s)\n",
 			b.FlightNumber, b.Departure.Airport, b.Arrival.Airport,
-			b.Duration.Formatted, b.Price.Amount, b.Price.Currency, b.Stops)
+			b.Duration.Formatted, money.FormatIDR(b.Price.Amount), b.Price.Currency, b.Stops)
 	}
 }
 

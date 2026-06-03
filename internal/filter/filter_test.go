@@ -380,3 +380,92 @@ func TestSort_EmptyAndSingle(t *testing.T) {
 		t.Errorf("ids = %v, want %v", ids(single), want)
 	}
 }
+
+// --- best-value ranking ---
+
+// bestValueFlights spans the full range so normalization is well-defined.
+// score = 1 - (0.5*normPrice + 0.3*normDuration + 0.2*min(stops,1)); higher is
+// better, and RankByValue puts the highest score first.
+func bestValueFlights() []model.Flight {
+	return []model.Flight{
+		// price 1500 -> p=1, dur 240 -> d=1, stops 2 -> s=1 : blended 1.00, score 0.00
+		mkFlight("expensive", withPrice(1500), withDuration(240), withStops(2)),
+		// price 500 -> p=0, dur 60 -> d=0, stops 0 -> s=0 : blended 0.00, score 1.00
+		mkFlight("cheap", withPrice(500), withDuration(60), withStops(0)),
+		// price 1000 -> p=0.5, dur 150 -> d=0.5, stops 1 -> s=1 : blended 0.60, score 0.40
+		mkFlight("mid", withPrice(1000), withDuration(150), withStops(1)),
+	}
+}
+
+func TestSort_BestValue(t *testing.T) {
+	flights := bestValueFlights()
+	Sort(flights, SortBestValue)
+	if want := []string{"cheap", "mid", "expensive"}; !reflect.DeepEqual(ids(flights), want) {
+		t.Errorf("ids = %v, want %v", ids(flights), want)
+	}
+}
+
+// An empty sort key defaults to best-value ranking (not a no-op).
+func TestSort_EmptyKeyDefaultsToBestValue(t *testing.T) {
+	flights := bestValueFlights()
+	Sort(flights, SortKey(""))
+	if want := []string{"cheap", "mid", "expensive"}; !reflect.DeepEqual(ids(flights), want) {
+		t.Errorf("ids = %v, want %v", ids(flights), want)
+	}
+}
+
+func TestRankByValue_OrdersByBlendedScore(t *testing.T) {
+	flights := bestValueFlights()
+	RankByValue(flights)
+	if want := []string{"cheap", "mid", "expensive"}; !reflect.DeepEqual(ids(flights), want) {
+		t.Errorf("ids = %v, want %v", ids(flights), want)
+	}
+	// Higher score is better, so the persisted scores must come out descending.
+	for i := 1; i < len(flights); i++ {
+		if flights[i-1].Score < flights[i].Score {
+			t.Errorf("scores not descending: %q(%.2f) before %q(%.2f)",
+				flights[i-1].ID, flights[i-1].Score, flights[i].ID, flights[i].Score)
+		}
+	}
+}
+
+// The stops component is capped at 1, so 2+ stops contribute the same as 1.
+// With price and duration held equal (normalized to 0), only stops matter:
+// the direct flight wins, and the 1-stop vs 2-stop flights tie and keep their
+// input order (stable sort).
+func TestRankByValue_StopsCappedAtOne(t *testing.T) {
+	flights := []model.Flight{
+		mkFlight("twoStops", withPrice(1000), withDuration(120), withStops(2)),
+		mkFlight("oneStop", withPrice(1000), withDuration(120), withStops(1)),
+		mkFlight("direct", withPrice(1000), withDuration(120), withStops(0)),
+	}
+	RankByValue(flights)
+	// direct (score 1.00) first; oneStop & twoStops tie (score 0.80) -> input order.
+	if want := []string{"direct", "twoStops", "oneStop"}; !reflect.DeepEqual(ids(flights), want) {
+		t.Errorf("ids = %v, want %v", ids(flights), want)
+	}
+}
+
+// When every flight is identical, all scores are equal and a stable sort leaves
+// the input order untouched (also exercises the norm hi==lo branch).
+func TestRankByValue_AllEqualPreservesOrder(t *testing.T) {
+	flights := []model.Flight{
+		mkFlight("x", withPrice(1000), withDuration(120), withStops(0)),
+		mkFlight("y", withPrice(1000), withDuration(120), withStops(0)),
+		mkFlight("z", withPrice(1000), withDuration(120), withStops(0)),
+	}
+	RankByValue(flights)
+	if want := []string{"x", "y", "z"}; !reflect.DeepEqual(ids(flights), want) {
+		t.Errorf("ids = %v, want unchanged %v", ids(flights), want)
+	}
+}
+
+func TestRankByValue_EmptyAndSingle(t *testing.T) {
+	RankByValue(nil) // must not panic
+
+	single := []model.Flight{mkFlight("only", withPrice(1000), withDuration(60), withStops(0))}
+	RankByValue(single)
+	if want := []string{"only"}; !reflect.DeepEqual(ids(single), want) {
+		t.Errorf("ids = %v, want %v", ids(single), want)
+	}
+}

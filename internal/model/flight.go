@@ -3,6 +3,8 @@ package model
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/zakidevara/bookcabin-assessment/internal/money"
 )
 
 // ---- Normalized Flight Model ----
@@ -22,6 +24,7 @@ type Flight struct {
 	Aircraft       *string  `json:"aircraft"`  // nullable -> AirAsia has none
 	Amenities      []string `json:"amenities"` // must be non-nil
 	Baggage        Baggage  `json:"baggage"`
+	Score          float64  `json:"score"` // higher score will be placed at the top, used for best value ranking debugging, should be hidden in production
 }
 
 type Airline struct {
@@ -42,8 +45,19 @@ type Duration struct {
 }
 
 type Price struct {
-	Amount   int64  `json:"amount"`
-	Currency string `json:"currency"`
+	Amount    int64  `json:"amount"`
+	Currency  string `json:"currency"`
+	Formatted string `json:"formatted"`
+}
+
+// TODO: currently only handles IDR format, need to adjust if there are new currency
+func (p Price) MarshalJSON() ([]byte, error) {
+	type alias Price // shed methods to avoid infinite recursion
+	v := alias(p)
+	if v.Currency == "IDR" {
+		v.Formatted = money.FormatIDR(v.Amount)
+	}
+	return json.Marshal(v)
 }
 
 type Baggage struct {

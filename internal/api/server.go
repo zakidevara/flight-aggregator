@@ -62,7 +62,8 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	sortKey := filter.SortKey(q.Get("sort"))
 	switch sortKey {
 	case "", filter.SortPriceAsc, filter.SortPriceDesc, filter.SortDurationAsc,
-		filter.SortDurationDesc, filter.SortDepartAsc, filter.SortArriveAsc:
+		filter.SortDurationDesc, filter.SortDepartAsc, filter.SortArriveAsc,
+		filter.SortBestValue:
 	default:
 		writeError(w, http.StatusBadRequest, "invalid sort key: "+string(sortKey))
 		return

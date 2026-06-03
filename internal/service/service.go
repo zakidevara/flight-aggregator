@@ -10,7 +10,7 @@ import (
 	"github.com/zakidevara/bookcabin-assessment/internal/provider"
 )
 
-// Service ties together providers, aggregation, filtering, ranking and caching.
+// Service ties together providers, aggregation, filtering, and sorting.
 type Service struct {
 	providers []provider.Provider
 	timeout   time.Duration
