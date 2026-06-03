@@ -1,6 +1,6 @@
 # Flight Search & Aggregation System
 
-Aggregates flights from four mock airline providers (Garuda Indonesia, Lion Air, Batik Air, AirAsia) — each with a different JSON shape — into one normalized, filterable, sortable, ranked result set, served over HTTP.
+Aggregates flights from four mock airline providers (Garuda Indonesia, Lion Air, Batik Air, AirAsia) into one normalized, filterable, sortable, ranked result set, served over HTTP.
 
 Go 1.26+, standard library only, no external dependencies.
 
