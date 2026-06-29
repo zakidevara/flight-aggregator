@@ -17,7 +17,7 @@ Implemented Functionality:
 
 ## Quick setup
 
-**1. Install Go 1.26+** — the only prerequisite.
+**1. Install Go 1.26+**
 
 - Download the official installer from <https://go.dev/dl/>, or use a package manager:
   - **macOS:** `brew install go`
