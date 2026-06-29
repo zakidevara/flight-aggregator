@@ -34,8 +34,8 @@ Implemented Functionality:
 **2. Clone, test, and run:**
 
 ```bash
-git clone git@github.com:zakidevara/bookcabin-assessment.git
-cd bookcabin-assessment          # the folder containing go.mod
+git clone git@github.com:zakidevara/flight-aggegator.git
+cd flight-aggegator              # the folder containing go.mod
 
 go test ./...                    # run the test suite
 go build ./... && go vet ./...   # compile + static checks
