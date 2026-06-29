@@ -11,7 +11,7 @@ Implemented Functionality:
 4. Data Inconsistency Handling
 5. Provider Retry with Exponential Backoff
 6. IDR Formatted Price Display
-7. Parallel Provider Calls
+7. Concurrent Provider Calls
 
 ---
 
@@ -254,9 +254,9 @@ In order to make it easier for the aggregator to do processing (filtering, sorti
 `Baggage`…).
 - Each provider implement an interface `Provider` to implement the `Name()` and `Search(ctx, req) ([]Flight, error)` function.
 
-### Parallel Processing per Provider
+### Concurrent Processing per Provider
 
-- Implemented parallel processing using goroutine to run `Search` for each provider at the same time, minimizing latency on each search request.
+- Implemented concurrent processing using goroutine to run `Search` for each provider at the same time, minimizing latency on each search request.
 - Enforced a global timeout and maximum 3 retries each provider with 100/200/400ms backoff.
 - Partial failure handling: failure in one `Provider` doesn't affect the others.
 
@@ -281,6 +281,6 @@ Best-value ranking uses 3 parameter with different weight: price (50%), flight d
 
 1. **Caching.** Ideally, fetched flight result should be stored in a cache to remove tight coupling to the provider & improve our system's performance. We can serve stale data while cache refresh is triggered. Its a tradeoff between data freshness vs performance & availability.
 2. **Request coalescing** To handle cache stampede if the cache key expires at the same time. Request coalescing will group identical request into one so that the upstream will receive less load.
-3. **Per-provider rate limiting** via a token-bucket decorator.
-4. **Circuit breaker** for sustained provider outages.
-5. **Round-trip / multi-city.** 
+4. **Per-provider rate limiting** via a token-bucket decorator.
+5. **Circuit breaker** for sustained provider outages.
+6. **Round-trip / multi-city.** 
